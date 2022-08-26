@@ -1,0 +1,18 @@
+version: "3.3"
+
+services:
+  blockchain-platform-pkg:
+    image: test:0
+    restart: always
+    ports:
+      - "3000:3000"
+    # host 추가 설정 필요?
+    #    extra_hosts:
+    #      - "host.docker.internal:host-gateway"
+    # 로그 경로 지정 필요
+    volumes:
+      - ./logs:/logs
+    env_file:
+      - ./.env.local
+      # - ./.env.dev
+      # - ./.env.prod
