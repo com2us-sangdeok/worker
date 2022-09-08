@@ -9,7 +9,7 @@ import {
 import { TxType } from '../enum';
 import { TxStatus } from '../enum';
 
-@Entity('EventError')
+@Entity('tb_event_error')
 export class EventErrorEntity {
   constructor(options?: Partial<EventErrorEntity>) {
     Object.assign(this, options);
@@ -18,30 +18,31 @@ export class EventErrorEntity {
   @PrimaryGeneratedColumn()
   tokenId: number;
 
-  @Column({ type: 'varchar' })
+  @Column({ name: 'request_id', type: 'varchar' })
   @Index('idx-requestId')
   requestId: string;
 
-  @Column({ type: 'enum', enum: TxType })
+  @Column({ name: 'tx_type', type: 'enum', enum: TxType })
   txType: TxType;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ name: 'tx_hash', type: 'varchar', length: 100 })
   @Index('idx-txHash')
   txHash?: string;
 
   // @Column({ type: 'text' })
   // tx: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ name: 'app_id', type: 'varchar' })
   appId: string;
 
-  @Column({ type: 'bigint' })
+  @Column({ name: 'player_id', type: 'bigint' })
   playerId: number;
 
   @Column({ type: 'text' })
   message: string;
 
   @CreateDateColumn({
+    name: 'create_at',
     type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP(6)',
   })

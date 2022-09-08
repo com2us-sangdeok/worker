@@ -21,9 +21,10 @@ import {
   GameApiException,
   GameApiHttpStatus,
 } from '../../exception/request.exception';
-import { ApiTypeCode } from '../../enum/queue.enum';
+// import { ApiTypeCode } from '../../enum/queue.enum';
 import { MintLogEntity, TransactionEntity } from '../../entities';
-import { TxResult } from '../dto/queue.dto';
+import { TxResultDto } from '../dto/queue.dto';
+import {GameServerApiCode} from "../../enum/queue.enum";
 
 @Injectable()
 export class DeadLettersService {
@@ -69,7 +70,7 @@ export class DeadLettersService {
         //   (item) => item.apiTypeCd === ApiTypeCode.NOTI_OF_COMPLETION_FOR_MINT,
         // )[0];
         replyForMint = gameServerInfo.body.data.apiTestLists.filter(
-          (item) => item.apiTypeCd === ApiTypeCode.NOTI_FOR_MINTING,
+          (item) => item.apiTypeCd === GameServerApiCode.TX_RESULT,
         )[0];
 
         const mintLog = await this.workerRepository.getMintLogByRequestId(
@@ -79,8 +80,9 @@ export class DeadLettersService {
 
         const replyToGameServer = await this.axiosClient.post(
           replyForMint.apiUrl,
-          <TxResult>{
+          <TxResultDto>{
             result: 'failure',
+            requestId: '',
             playerId: payload.pid,
             server: serverInfo,
             selectedCid: 'characterId',
@@ -155,7 +157,7 @@ export class DeadLettersService {
       throw new QueueException(
         e.message,
         e,
-        QueueHttpStatus.CONVERTING_PROCESS_FAILED,
+        QueueHttpStatus.CONVERT_FAILED,
       );
     }
   }
@@ -169,7 +171,7 @@ export class DeadLettersService {
       throw new QueueException(
         e.message,
         e,
-        QueueHttpStatus.LOCKING_PROCESS_FAILED,
+        QueueHttpStatus.LOCK_FAILED,
       );
     }
   }
@@ -183,7 +185,7 @@ export class DeadLettersService {
       throw new QueueException(
         e.message,
         e,
-        QueueHttpStatus.UNLOCKING_PROCESS_FAILED,
+        QueueHttpStatus.UNLOCK_FAILED,
       );
     }
   }

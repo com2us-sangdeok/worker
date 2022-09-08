@@ -9,10 +9,9 @@ import { LockService } from './modules/contract/lock.service';
 import { CW20Service } from './modules/contract/cw20.service';
 import { CW721Service } from './modules/contract/cw721.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TransactionEntity, SequenceEntity } from '../entities';
-import {SequenceRepository} from "../queue/repository/sequence.repository";
+import { TransactionEntity } from '../entities';
 
-const entityLsit = [TransactionEntity, SequenceEntity];
+const entityLsit = [TransactionEntity];
 
 @Module({
   imports: [TypeOrmModule.forFeature(entityLsit), BlockchainModule],
@@ -25,7 +24,6 @@ const entityLsit = [TransactionEntity, SequenceEntity];
     LockService,
     CW20Service,
     CW721Service,
-    SequenceRepository,
   ],
   exports: [
     BlockchainService,

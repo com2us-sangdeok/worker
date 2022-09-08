@@ -4,7 +4,6 @@ import { MsgSend, Tx, Wallet } from '@terra-money/terra.js';
 import { SignMode } from '@terra-money/terra.proto/cosmos/tx/signing/v1beta1/signing';
 import { Coinbalance } from './modules.inerface';
 import { DataSource, QueryRunner } from 'typeorm';
-import { SequenceRepository } from '../../queue/repository/sequence.repository';
 import {
   GameApiException,
   GameApiHttpStatus,
@@ -18,7 +17,6 @@ export class CommonService {
   constructor(
     private readonly blockchainService: BlockchainService,
     private dataSource: DataSource,
-    private sequenceRepository: SequenceRepository,
   ) {}
 
   public async sign(wallet: Wallet, tx: Tx): Promise<Tx> {
@@ -53,57 +51,5 @@ export class CommonService {
   // Queue에 넣고 consumer에서 처리
   public async broadCast(signedTx: Tx): Promise<any> {
     return await this.lcd.tx.broadcastSync(signedTx);
-  }
-
-  //todo 대납 상황에 맞춰서 다시 개발 필요
-  public async getSequenceNumber(accAddress: string): Promise<any> {
-    const queryRunner: QueryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.startTransaction('SERIALIZABLE');
-    try {
-      const sequenceFromBlockchain: number = (
-        await this.blockchainService
-          .blockChainClient()
-          .client.account(accAddress)
-      ).sequence;
-
-      let sequenceFromDB: number = (
-        await this.sequenceRepository.getSequenceNumber(queryRunner, accAddress)
-      ).sequenceNumber;
-
-      if (sequenceFromDB === -1) {
-        // init sequence number
-        await this.sequenceRepository.registerSequence(
-          queryRunner,
-          accAddress,
-          sequenceFromBlockchain,
-        );
-        sequenceFromDB = sequenceFromBlockchain;
-      } else if (sequenceFromDB < sequenceFromBlockchain) {
-        // sync sequence number between DB and blockchain network
-        await this.sequenceRepository.updateSequenceFromBlockchain(
-          queryRunner,
-          accAddress,
-          sequenceFromBlockchain,
-        );
-        sequenceFromDB = sequenceFromBlockchain;
-      }
-
-      await this.sequenceRepository.updateSequenceFromDb(
-        queryRunner,
-        accAddress,
-        sequenceFromDB,
-      );
-      await queryRunner.commitTransaction();
-      return sequenceFromBlockchain;
-    } catch (e) {
-      await queryRunner.rollbackTransaction();
-      throw new GameApiException(
-        e.message,
-        e.stack,
-        GameApiHttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    } finally {
-      await queryRunner.release();
-    }
   }
 }

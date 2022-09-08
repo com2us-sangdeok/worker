@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   PrimaryColumn,
+  PrimaryGeneratedColumn,
   Index,
 } from 'typeorm';
 import { TxType } from '../enum';
@@ -15,29 +16,30 @@ export class TransactionEntity {
     Object.assign(this, options);
   }
 
+  @PrimaryGeneratedColumn('increment')
+  id: number;
+
   @PrimaryColumn({ type: 'varchar', primary: true })
   @Index('idx-requestId')
   requestId: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, nullable: true, default: null })
   @Index('idx-sender')
   senderAddress: string;
 
-  //TODO. minterAddress로 바뀔수도 있음
-  @Column({ type: 'varchar', length: 100 })
-  @Index('idx-granter')
-  granterAddress: string;
-
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, nullable: true, default: null })
   @Index('idx-contract')
-  contractAddress: string;
+  contractAddress?: string;
 
-  @Column({ type: 'varchar', length: 100, unique: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, default: null })
   @Index('idx-txHash')
   txHash?: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true, default: null })
   tx: string;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  params: string;
 
   @Column({ type: 'enum', enum: TxType })
   txType: TxType;
@@ -53,7 +55,7 @@ export class TransactionEntity {
   @Column({ type: 'enum', enum: TxStatus, default: TxStatus.WAIT })
   status: TxStatus;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true, default: null })
   message?: string;
 
   @CreateDateColumn({

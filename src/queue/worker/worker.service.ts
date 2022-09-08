@@ -1,10 +1,12 @@
 import { Inject, Injectable, LoggerService } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
+  BurnPayload,
   ConvertPayload,
   LockPayload,
-  MintPayload,
-  PATTERN_MINT,
+  MintPayload, PATTERN_BURN,
+  PATTERN_CONVERT, PATTERN_LOCK,
+  PATTERN_MINT, PATTERN_UNLOCK,
   UnlockPayload,
 } from '../messages';
 import {
@@ -21,8 +23,8 @@ import {
   GameApiHttpStatus,
 } from '../../exception/request.exception';
 import { ConfigService } from '@nestjs/config';
-import { TxResult } from '../dto/queue.dto';
-import {GameServerApiCode} from "../../enum/queue.enum";
+import { TxResultDto } from '../dto/queue.dto';
+import { GameServerApiCode } from '../../enum/queue.enum';
 
 @Injectable()
 export class WorkerService {
@@ -53,7 +55,7 @@ export class WorkerService {
       );
       if (gameServerInfo.status !== 200) {
         throw new GameApiException(
-          'Betagame not found',
+          'betagame not found',
           '',
           GameApiHttpStatus.NOT_FOUND,
         );
@@ -74,8 +76,9 @@ export class WorkerService {
 
       const replyToGameServer = await this.axiosClient.post(
         replyForMint.apiUrl,
-        <TxResult>{
+        <TxResultDto>{
           result: 'success',
+          requestId: payload.requestId,
           playerId: payload.pid,
           server: serverInfo,
           // fixme: character id
@@ -84,13 +87,13 @@ export class WorkerService {
           // fixme: mint type ? item, items, character
           items: [{ tokenId: payload.tokenId }],
         },
-          {correlationId: payload.requestId}
+        { correlationId: payload.requestId },
       );
       if (
         !(replyToGameServer.status === 200 || replyToGameServer.status === 201)
       ) {
         throw new GameApiException(
-          'Betagame not found',
+          'failed to respond on game server',
           '',
           GameApiHttpStatus.NOT_FOUND,
         );
@@ -101,60 +104,117 @@ export class WorkerService {
         status: MintLogStatus.COMPLETE,
       });
 
-      await this.workerRepository.updateTransactionByRequestId(<
-        TransactionEntity
-      >{
-        requestId: payload.requestId,
-        status: TxStatus.SUCCESS,
-      });
+      // await this.workerRepository.updateTransactionByRequestId(<
+      //   TransactionEntity
+      // >{
+      //   requestId: payload.requestId,
+      //   status: TxStatus.SUCCESS,
+      // });
     } catch (error) {
-      // connection error
-      if (this.ConnectionError.includes(error.code)) {
-        // send msg to queue again
-        const retryCount: number = payload.retryCount ?? Number(this.configService.get('Q_MAX_RETRY_COUNT'));
-        if (retryCount === 0) {
-          this.logger.error('can not try any more [retryCount: 0]');
-          throw error;
-        } else {
-          this.logger.error('retry count:', retryCount);
-          this.client.emit(PATTERN_MINT, {
-            ...payload,
-            retryCount: retryCount,
-          });
-          throw new QueueException('retry event', '', QueueHttpStatus.RETRY_EVENT);
-        }
-      } else {
-        throw error;
-      }
+      this.errorHandler(error, payload, PATTERN_MINT);
+      // // connection error
+      // if (this.ConnectionError.includes(error.code)) {
+      //   // send msg to queue again
+      //   const retryCount: number =
+      //     payload.retryCount ??
+      //     Number(this.configService.get('Q_MAX_RETRY_COUNT'));
+      //   if (retryCount === 0) {
+      //     this.logger.error('can not try any more [retryCount: 0]');
+      //     throw error;
+      //   } else {
+      //     this.logger.error('retry count:', retryCount);
+      //     this.client.emit(PATTERN_MINT, {
+      //       ...payload,
+      //       retryCount: retryCount,
+      //     });
+      //     throw new QueueException(
+      //       'retry mint event',
+      //       '',
+      //       QueueHttpStatus.RETRY_EVENT,
+      //     );
+      //   }
+      // } else {
+      //   throw error;
+      // }
     }
   }
 
   async convertEvent(payload: ConvertPayload) {
     try {
-      this.logger.log(`payload: ${payload}`);
-      // todo: convert log update
-      //   call game server to complete
-      //   update convert pool
-    } catch (e) {
-      throw new QueueException(
-        e.message,
-        e,
-        QueueHttpStatus.CONVERTING_PROCESS_FAILED,
-      );
+      const gameServerData = await this.getBetaGameData(payload.appId);
+
+      // fixme: change the test code (update item)
+      // const gameServerApi = gameServerData.body.data.apiLists.filter(
+      //   (item) => item.apiTypeCd === GameServerApiCode.TX_RESULT,
+      // )[0];
+      const gameServerConvertApi = gameServerData.apiTestLists.filter(
+          (item) => item.apiTypeCd === GameServerApiCode.CONVERT,
+      )[0];
+
+
+      // todo: convert type에 따른 처리
+      //   db 조회 후 값 세팅
+      this.workerRepository
+      payload.convertType
+
+      const serverInfo = ['']; //mintLog.server.split(',');
+      await this.axiosClient.patch(gameServerConvertApi.apiUrl, {
+        requestId: payload.requestId,
+        characterId: 'character',
+        goodsCode: 'payload.pid',
+        amount: 0,
+        type: 'TxType.MINT',
+      },{
+        appId: payload.appId,
+        server: serverInfo,
+        playerId: payload.pid,
+      })
+
+
+      // fixme: change the test code (tx result)
+      // const gameServerApi = gameServerData.body.data.apiLists.filter(
+      //   (item) => item.apiTypeCd === GameServerApiCode.TX_RESULT,
+      // )[0];
+      const gameServerApi = gameServerData.apiTestLists.filter(
+        (item) => item.apiTypeCd === GameServerApiCode.TX_RESULT,
+      )[0];
+
+      await this.getGameServerData(gameServerApi.apiUrl, {
+        result: 'success',
+        requestId: payload.requestId,
+        playerId: payload.pid,
+        server: serverInfo,
+        selectedCid: 'character',
+        eventType: TxType.MINT,
+        // fixme: mint type ? item, items, character
+        items: [{}],
+      });
+
+      // todo: update the table about convert
+      //  reply txinfo
+    } catch (error) {
+      this.errorHandler(error, payload, PATTERN_CONVERT);
     }
   }
 
   async lockEvent(payload: LockPayload) {
     try {
       this.logger.log(`payload: ${payload}`);
+      const gameServerData = await this.getBetaGameData(payload.appId);
+
+      // fixme: change the test code (update item)
+      // const gameServerApi = gameServerData.body.data.apiLists.filter(
+      //   (item) => item.apiTypeCd === GameServerApiCode.TX_RESULT,
+      // )[0];
+      const gameServerConvertApi = gameServerData.apiTestLists.filter(
+          (item) => item.apiTypeCd === GameServerApiCode.CONVERT,
+      )[0];
+
+
       // todo: lock log update
       //   call game server to complete
-    } catch (e) {
-      throw new QueueException(
-        e.message,
-        e,
-        QueueHttpStatus.LOCKING_PROCESS_FAILED,
-      );
+    } catch (error) {
+      this.errorHandler(error, payload, PATTERN_LOCK);
     }
   }
 
@@ -163,12 +223,92 @@ export class WorkerService {
       this.logger.log(`payload: ${payload}`);
       // todo: unlock log update
       //   call game server to complete
-    } catch (e) {
-      throw new QueueException(
-        e.message,
-        e,
-        QueueHttpStatus.UNLOCKING_PROCESS_FAILED,
+    } catch (error) {
+      this.errorHandler(error, payload, PATTERN_UNLOCK);
+    }
+  }
+
+  async burnEvent(payload: BurnPayload) {
+    try {
+      this.logger.log(`payload: ${payload}`);
+      // todo: unlock log update
+      //   call game server to complete
+    } catch (error) {
+      this.errorHandler(error, payload, PATTERN_BURN);
+    }
+  }
+
+  private async getBetaGameData(appId: string): Promise<any> {
+    const betaGameData = await this.axiosClient.get(
+      this.configService.get('BG_DETAIL_GAME_INFO').replace('{APP_ID}', appId),
+    );
+    if (betaGameData.status !== 200) {
+      throw new GameApiException(
+        'failed to respond on console server',
+        '',
+        GameApiHttpStatus.EXTERNAL_SERVER_ERROR,
       );
+    }
+    if (betaGameData.body.code === 404) {
+      throw new GameApiException(
+        'betagame not found',
+        '',
+        GameApiHttpStatus.EXTERNAL_SERVER_ERROR,
+      );
+    }
+    return betaGameData.body.data;
+  }
+
+  private async getGameServerData(
+    url: string,
+    params: TxResultDto,
+  ): Promise<any> {
+    const gameServerData = await this.axiosClient.post(
+      url,
+      <TxResultDto>{
+        result: params.result,
+        playerId: params.playerId,
+        server: params.server,
+        selectedCid: params.selectedCid,
+        eventType: TxType.MINT,
+        items: params.items,
+      },
+      { correlationId: params.requestId },
+    );
+    if (!(gameServerData.status === 200 || gameServerData.status === 201)) {
+      throw new GameApiException(
+        'failed to respond on game server',
+        '',
+        GameApiHttpStatus.EXTERNAL_SERVER_ERROR,
+      );
+    }
+    return gameServerData.body.data;
+  }
+
+  private errorHandler(error, payload, eventPattern: string) {
+    // connection error
+    if (this.ConnectionError.includes(error.code)) {
+      // send msg to queue again
+      const retryCount: number =
+        payload.retryCount ??
+        Number(this.configService.get('Q_MAX_RETRY_COUNT'));
+      if (retryCount === 0) {
+        this.logger.error('can not try any more [retryCount: 0]');
+        throw error;
+      } else {
+        this.logger.error(`retry ${eventPattern.toLowerCase()} event (${retryCount})`);
+        this.client.emit(eventPattern, {
+          ...payload,
+          retryCount: retryCount,
+        });
+        throw new QueueException(
+          `retry ${eventPattern.toLowerCase()} event`,
+          '',
+          QueueHttpStatus.RETRY_EVENT,
+        );
+      }
+    } else {
+      throw error;
     }
   }
 }

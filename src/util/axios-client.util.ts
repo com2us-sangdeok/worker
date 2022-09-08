@@ -44,6 +44,32 @@ export class AxiosClientUtil {
     }
   }
 
+  public async put(url: string, data?: any, headerOpts?: any): Promise<any> {
+    let headers = this.setHeaderData(headerOpts);
+    try {
+      const response = await firstValueFrom(
+          this.httpService.put(url, data, { headers: headers }),
+      );
+
+      return new AxiosResponseDto<any>(response.status, '', response.data);
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  public async patch(url: string, data?: any, headerOpts?: any): Promise<any> {
+    let headers = this.setHeaderData(headerOpts);
+    try {
+      const response = await firstValueFrom(
+          this.httpService.patch(url, data, { headers: headers }),
+      );
+
+      return new AxiosResponseDto<any>(response.status, '', response.data);
+    } catch (e) {
+      throw e;
+    }
+  }
+
   private setHeaderData(headerOptions: any): any {
     let correlationId =
       this.namespace.get(RequestContext.CORRELATION_ID) ??

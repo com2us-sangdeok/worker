@@ -20,12 +20,8 @@ import { LoggerMiddleware } from './middleware/logger.middleware';
 import DatabaseLogger from './commom/logger/database.logger';
 import { RequestContextMiddleware } from './middleware/request-context.middleware';
 import {
-  AssetEntity,
-  MetadataEntity,
   ConvertPoolEntity,
-  NonFungibleTokenEntity,
   MintLogEntity,
-  SequenceEntity,
   TransactionEntity,
 } from './entities';
 import {QueueModule} from "./queue/queue.module";
@@ -57,10 +53,6 @@ import {EventErrorEntity} from "./entities/event-error.entity";
           database: configService.get('DB_DATABASE'),
           entities: [
             ConvertPoolEntity,
-            AssetEntity,
-            MetadataEntity,
-            SequenceEntity,
-            NonFungibleTokenEntity,
             MintLogEntity,
             TransactionEntity,,
             EventErrorEntity,

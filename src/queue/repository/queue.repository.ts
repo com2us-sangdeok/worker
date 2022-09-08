@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {Repository, UpdateResult} from 'typeorm';
 import {
-  NonFungibleTokenEntity,
   TransactionEntity,
   MintLogEntity,
 } from '../../entities';
@@ -67,7 +66,7 @@ export class QueueRepository {
       .createQueryBuilder()
       .update(MintLogEntity)
       .set({ status: entity.status })
-      .where('requestId = :requestId', { requestId: entity.requestId })
+      .where('request_id = :requestId', { requestId: entity.requestId })
       .execute();
   }
 
@@ -79,7 +78,7 @@ export class QueueRepository {
         .createQueryBuilder()
         .update(TransactionEntity)
         .set({ status: entity.status })
-        .where('requestId = :requestId', { requestId: entity.requestId })
+        .where('request_id = :requestId', { requestId: entity.requestId })
         .execute();
   }
 
